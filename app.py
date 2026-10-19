@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import json
+import os
 
 # 1. Page Configuration
 st.set_page_config(
@@ -8,10 +10,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Custom CSS & Dark Theme Styling
+# 2. Custom CSS, Dark Theme & Keyframe Pulse Animations
 st.markdown(
     """
     <style>
+    /* Main Background */
     .stApp {
         background-color: #0b0f19;
         color: #e2e8f0;
@@ -20,6 +23,42 @@ st.markdown(
         padding-top: 1.8rem;
         padding-bottom: 2.5rem;
     }
+
+    /* Keyframe Glow Animation for Front Page */
+    @keyframes plantPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4);
+            transform: scale(1);
+        }
+        50% {
+            box-shadow: 0 0 25px 8px rgba(56, 189, 248, 0.2);
+            transform: scale(1.02);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4);
+            transform: scale(1);
+        }
+    }
+
+    @keyframes scanline {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(1000%); }
+    }
+
+    /* Animated Front Card */
+    .animated-login-header {
+        background: linear-gradient(135deg, #151c2c 0%, #1a2234 100%);
+        border: 1px solid #38bdf8;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        animation: plantPulse 4s infinite ease-in-out;
+        margin-bottom: 18px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Metric Cards */
     div[data-testid="stMetric"] {
         background: #151c2c;
         border: 1px solid #243048;
@@ -39,12 +78,15 @@ st.markdown(
         font-weight: 700;
         color: #38bdf8;
     }
+
     .plant-sub {
         color: #94a3b8;
         font-size: 0.92rem;
         margin-top: -8px;
         margin-bottom: 18px;
     }
+
+    /* Scope Radio Bar */
     div[data-testid="stRadio"] > div {
         background-color: #151c2c;
         padding: 10px 14px;
@@ -57,21 +99,129 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Initialize view mode state
+# 3. Persistent User Storage System
+USERS_FILE = "users.json"
+
+def load_users():
+    default_users = {
+        "admin": {"password": "Admin@nalco2026", "role": "Admin"},
+        "engineer": {"password": "Plant@123", "role": "Engineer"},
+        "operator": {"password": "Dcs@cs09", "role": "Operator"}
+    }
+    if not os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "w") as f:
+            json.dump(default_users, f, indent=4)
+        return default_users
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return default_users
+
+def save_users(users_dict):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_dict, f, indent=4)
+
+# Session State Initializations
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "user_name" not in st.session_state:
+    st.session_state.user_name = ""
+if "user_role" not in st.session_state:
+    st.session_state.user_role = ""
 if "view_mode" not in st.session_state:
     st.session_state.view_mode = "dashboard"
 
-# 3. File and Sheet Settings
+# ========================================================
+# GATE: ANIMATED FRONT PAGE & LOGIN / REGISTER
+# ========================================================
+if not st.session_state.authenticated:
+    _, col_center, _ = st.columns([1, 1.3, 1])
+    with col_center:
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Animated Plant / Industrial SVG Banner
+        st.markdown(
+            """
+            <div class="animated-login-header">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <h3 style="color: #f8fafc; margin: 10px 0 4px 0; font-weight: 700;">DCS Automation & Spares Portal</h3>
+                <p style="color: #94a3b8; font-size: 0.85rem; margin: 0;">Control & Instrumentation Plant Ledger Access</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        tab_login, tab_register = st.tabs(["🔑 Sign In", "➕ Register New User"])
+        current_users = load_users()
+
+        # TAB 1: SIGN IN
+        with tab_login:
+            with st.form("login_form"):
+                username = st.text_input("Username / ID", placeholder="e.g. admin or engineer").strip()
+                password = st.text_input("Password", type="password", placeholder="Enter account password")
+                submit = st.form_submit_button("Authenticate & Enter", type="primary", use_container_width=True)
+
+                if submit:
+                    if username in current_users and current_users[username]["password"] == password:
+                        st.session_state.authenticated = True
+                        st.session_state.user_name = username
+                        st.session_state.user_role = current_users[username].get("role", "Operator")
+                        st.rerun()
+                    else:
+                        st.error("Invalid Username or Password.")
+
+        # TAB 2: USER REGISTRATION
+        with tab_register:
+            with st.form("register_form"):
+                new_user = st.text_input("Create Username / ID").strip()
+                new_pass = st.text_input("Create Password", type="password")
+                confirm_pass = st.text_input("Confirm Password", type="password")
+                new_role = st.selectbox("Designated Role", ["Engineer", "Operator", "Admin"])
+                reg_submit = st.form_submit_button("Register New User", use_container_width=True)
+
+                if reg_submit:
+                    if not new_user or not new_pass:
+                        st.warning("All fields are required.")
+                    elif new_user in current_users:
+                        st.error("Username already registered.")
+                    elif new_pass != confirm_pass:
+                        st.error("Passwords do not match.")
+                    else:
+                        current_users[new_user] = {"password": new_pass, "role": new_role}
+                        save_users(current_users)
+                        st.success(f"Account created for '{new_user}'. You can now log in.")
+
+    st.stop()
+
+# ========================================================
+# LOGGED IN PORTAL LOGIC
+# ========================================================
+
+# Top User Status & Session Control
+user_col1, user_col2 = st.columns([4, 1])
+with user_col1:
+    st.caption(f"Operator: **{st.session_state.user_name.upper()}** | Role: **{st.session_state.user_role}** | Status: Active")
+with user_col2:
+    if st.button("🔒 Sign Out", type="secondary", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_name = ""
+        st.session_state.user_role = ""
+        st.rerun()
+
+# 4. File and Sheet Settings
 EXCEL_FILE = "inventory_master.xlsx"
 SHEET_NAME = "Sheet1"
 
-# 4. Load Excel Data Safely with Header Detection
+# 5. Load Data Safely with Header Detection
 @st.cache_data
 def get_raw_data():
     try:
         raw_df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME)
 
-        # Auto-detect header row if preceded by blank rows
         if "S.NO." not in raw_df.columns:
             for idx, row in raw_df.iterrows():
                 if "S.NO." in row.values:
@@ -83,7 +233,6 @@ def get_raw_data():
             raw_df = raw_df.dropna(subset=["S.NO."])
         raw_df = raw_df.dropna(how="all")
 
-        # Location columns
         location_cols = ['CS06', 'CS11', 'CCR', 'TRNG', 'CS02', 'CS03', 'CS04', 'CS05', 'CS07', 'CS09', 'CS10']
         for col in location_cols:
             if col in raw_df.columns:
@@ -100,9 +249,9 @@ def get_raw_data():
 
 df, available_locs = get_raw_data()
 
-# Identify description column dynamically
+# Identify description column
 desc_col = None
-for col_candidate in ["Item Description", "Description", "ITEM DESCRIPTION", "DESCRIPTION", "Item", "ITEM"]:
+for col_candidate in ["Item Description", "Description", "ITEM DESCRIPTION", "DESCRIPTION", "Item"]:
     if col_candidate in df.columns:
         desc_col = col_candidate
         break
@@ -115,7 +264,6 @@ meta_cols = [c for c in df.columns if c not in available_locs and c != 'TOTAL']
 # VIEW 1: DEDICATED FULL-SCREEN ANALYTICS & CHARTS
 # ========================================================
 if st.session_state.view_mode == "analytics":
-    # Navigation Back to Dashboard
     nav_col1, _ = st.columns([1, 4])
     with nav_col1:
         if st.button("← Back to Master Matrix", type="secondary", use_container_width=True):
@@ -125,7 +273,7 @@ if st.session_state.view_mode == "analytics":
     st.title("📊 DCS Spares & Hardware Analytics")
     st.markdown('<p class="plant-sub">Comprehensive hardware distribution analytics across plant control stations.</p>', unsafe_allow_html=True)
 
-    # 1. Summary Metrics
+    # Summary Metrics
     tot_spares = int(df['TOTAL'].sum()) if 'TOTAL' in df.columns else 0
     hwl_count = int(df[df['Make'].astype(str).str.upper().str.contains('HWL', na=False)]['TOTAL'].sum()) if 'Make' in df.columns and 'TOTAL' in df.columns else 0
     hwl_share = round((hwl_count / tot_spares * 100), 1) if tot_spares > 0 else 0
@@ -139,7 +287,7 @@ if st.session_state.view_mode == "analytics":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 2. Side-by-Side Charts
+    # Side-by-Side Charts
     c_left, c_right = st.columns(2)
     with c_left:
         st.subheader("🏭 Spare Density by Control Station")
@@ -159,7 +307,7 @@ if st.session_state.view_mode == "analytics":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. Functional Categorization
+    # Categorization Chart
     st.subheader("🧩 Spares Allocation by Hardware Category")
     def categorize_item(desc):
         d = str(desc).upper()
@@ -183,7 +331,7 @@ if st.session_state.view_mode == "analytics":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 4. Station Deep Dive
+    # Station Deep Dive
     st.subheader("🔍 Station-Specific Inventory Breakdown")
     col_sel, _ = st.columns([2, 2])
     with col_sel:
@@ -279,28 +427,43 @@ if 'TOTAL' in active_columns:
 
 # Data Table
 st.subheader(f"Data Matrix — {selected_room}")
-edited_df = st.data_editor(
-    view_df,
-    num_rows="dynamic" if selected_room == "All Stations" else "fixed",
-    use_container_width=True,
-    hide_index=True,
-    column_config=col_config
-)
+
+# Only Admin & Engineer can edit; Operators have read-only safety
+can_edit = st.session_state.user_role in ["Admin", "Engineer"]
+
+if can_edit:
+    edited_df = st.data_editor(
+        view_df,
+        num_rows="dynamic" if selected_room == "All Stations" else "fixed",
+        use_container_width=True,
+        hide_index=True,
+        column_config=col_config
+    )
+else:
+    st.info("🔒 Read-Only Mode: Logged in as Operator. Modifying records requires Engineer or Admin credentials.")
+    st.dataframe(
+        view_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config=col_config
+    )
+    edited_df = view_df
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # Save & Export Controls
 save_col, export_col = st.columns([2, 1])
 with save_col:
-    if st.button("Save All Modifications Directly to Excel", type="primary", use_container_width=True):
-        df.update(edited_df)
-        if available_locs:
-            df['TOTAL'] = df[available_locs].sum(axis=1)
+    if can_edit:
+        if st.button("Save All Modifications Directly to Excel", type="primary", use_container_width=True):
+            df.update(edited_df)
+            if available_locs:
+                df['TOTAL'] = df[available_locs].sum(axis=1)
 
-        df.to_excel(EXCEL_FILE, index=False, sheet_name=SHEET_NAME)
-        st.cache_data.clear()
-        st.success("Modifications saved successfully to Excel!")
-        st.rerun()
+            df.to_excel(EXCEL_FILE, index=False, sheet_name=SHEET_NAME)
+            st.cache_data.clear()
+            st.success("Modifications saved successfully to Excel!")
+            st.rerun()
 
 with export_col:
     st.download_button(
